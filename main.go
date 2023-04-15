@@ -36,6 +36,7 @@ func readAlgo(reader *bufio.Reader) string {
 	fmt.Println("2. Insertion sort")
 	fmt.Println("3. Selection sort")
 	fmt.Println("4. Heap sort")
+	fmt.Println("5. Bogo sort")
 	fmt.Print("Enter option number: ")
 	algo, _ := reader.ReadString('\n')
 	return strings.TrimSpace(algo)
@@ -134,6 +135,8 @@ func run() {
 			minHeap := NewMinHeap(data)
 			minHeap.Sort(win, bars, barWidth, len(data), delay)
 			return
+		case "5":
+			BogoSort(win, bars, barWidth, data, delay)
 		default:
 			fmt.Println("Invalid option, please try again")
 		}
