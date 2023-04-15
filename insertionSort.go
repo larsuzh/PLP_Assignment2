@@ -18,4 +18,5 @@ func InsertionSort(win *pixelgl.Window, bars []bar, barWidth float64, data []flo
 			Sleep(info.delay)
 		}
 	}
+	VisualizeSorted(win, bars, barWidth, data)
 }

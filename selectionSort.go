@@ -18,4 +18,5 @@ func SelectionSort(win *pixelgl.Window, bars []bar, barWidth float64, data []flo
 		}
 		data[i], data[minIdx] = data[minIdx], data[i]
 	}
+	VisualizeSorted(win, bars, barWidth, data)
 }

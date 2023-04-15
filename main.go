@@ -131,6 +131,30 @@ func Visualize(win *pixelgl.Window, bars []bar, barWidth float64, data []float64
 	txt.Draw(win, pixel.IM)
 }
 
+func VisualizeSorted(win *pixelgl.Window, bars []bar, barWidth float64, data []float64) {
+	for j := 0; j < len(bars); j++ {
+		Sleep(600 / len(data))
+		win.Update()
+		win.Clear(colornames.Lightslategray)
+		for i := 0; i < len(bars); i++ {
+			bars[i].rect = pixel.R(barWidth*float64(i), data[i], barWidth*float64(i)+barWidth, 0)
+			if i > j {
+				bars[i].color = colornames.Lightblue
+			} else {
+				bars[i].color = colornames.Green
+			}
+
+		}
+		for b := 0; b < len(bars); b++ {
+			imd := imdraw.New(nil)
+			imd.Color = bars[b].color
+			imd.Push(bars[b].rect.Min, bars[b].rect.Max)
+			imd.Rectangle(0)
+			imd.Draw(win)
+		}
+	}
+}
+
 func run() {
 	reader := bufio.NewReader(os.Stdin)
 	var info info

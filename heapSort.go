@@ -79,6 +79,7 @@ func (m *minheap) Sort(win *pixelgl.Window, bars []bar, barWidth float64, size i
 		m.Visualize(win, bars, barWidth, 0, i, info)
 		Sleep(info.delay)
 	}
+	VisualizeSorted(win, bars, barWidth, m.arr)
 }
 
 func (m *minheap) Visualize(win *pixelgl.Window, bars []bar, barWidth float64, j int, k int, info info) {

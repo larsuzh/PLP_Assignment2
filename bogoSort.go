@@ -25,7 +25,8 @@ func BogoSort(win *pixelgl.Window, bars []bar, barWidth float64, data []float64,
 		Visualize(win, bars, barWidth, data, -1, -1, info)
 		Sleep(info.delay)
 		if checkSortedArray(data) {
-			return
+			break
 		}
 	}
+	VisualizeSorted(win, bars, barWidth, data)
 }
