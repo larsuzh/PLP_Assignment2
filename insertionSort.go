@@ -13,8 +13,8 @@ func InsertionSort(win *pixelgl.Window, bars []bar, barWidth float64, data []flo
 				data[j-1], data[j] = data[j], data[j-1]
 			}
 			j = j - 1
+			Visualize(win, bars, barWidth, data)
+			Sleep(delay)
 		}
-		Visualize(win, bars, barWidth, data)
-		Sleep(delay)
 	}
 }
