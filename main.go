@@ -13,12 +13,20 @@ import (
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
 	"github.com/faiface/pixel/pixelgl"
+	"github.com/faiface/pixel/text"
 	"golang.org/x/image/colornames"
+	"golang.org/x/image/font/basicfont"
 )
 
 type bar struct {
 	rect  pixel.Rect
 	color color.Color
+}
+
+type info struct {
+	algo        string
+	delay       int
+	comparisons int
 }
 
 var (
@@ -92,12 +100,18 @@ func createWindow() *pixelgl.Window {
 	return win
 }
 
-func Visualize(win *pixelgl.Window, bars []bar, barWidth float64, data []float64) {
+func Visualize(win *pixelgl.Window, bars []bar, barWidth float64, data []float64, j int, k int, info info) {
 	win.Update()
 	win.Clear(colornames.Lightslategray)
 	for i := 0; i < len(bars); i++ {
 		bars[i].rect = pixel.R(barWidth*float64(i), data[i], barWidth*float64(i)+barWidth, 0)
 		bars[i].color = colornames.Lightblue
+	}
+	if j >= 0 {
+		bars[j].color = colornames.Red
+	}
+	if k >= 0 {
+		bars[k].color = colornames.Red
 	}
 	for b := 0; b < len(bars); b++ {
 		imd := imdraw.New(nil)
@@ -106,13 +120,23 @@ func Visualize(win *pixelgl.Window, bars []bar, barWidth float64, data []float64
 		imd.Rectangle(0)
 		imd.Draw(win)
 	}
+	atlas := text.NewAtlas(
+		basicfont.Face7x13,
+		text.ASCII,
+	)
+	txt := text.New(pixel.V(30, 680), atlas)
+	txt.Color = colornames.Black
+	infoTxt := info.algo + ", delay: " + fmt.Sprintf("%d", info.delay) + ", comparisons: " + fmt.Sprintf("%d", info.comparisons)
+	txt.WriteString(infoTxt)
+	txt.Draw(win, pixel.IM)
 }
 
 func run() {
 	reader := bufio.NewReader(os.Stdin)
-	algo := readAlgo(reader)
+	var info info
+	info.algo = readAlgo(reader)
 	dataSize := readSize(reader)
-	delay := readDelay(reader)
+	info.delay = readDelay(reader)
 
 	barWidth = float64(WIDTH) / float64(dataSize)
 	bars := make([]bar, dataSize)
@@ -121,22 +145,28 @@ func run() {
 	win := createWindow()
 
 	for !win.Closed() {
-		switch algo {
+		switch info.algo {
 		case "1":
-			BubbleSort(win, bars, barWidth, data, delay)
+			info.algo = "Bubble sort"
+			BubbleSort(win, bars, barWidth, data, info)
 			return
 		case "2":
-			InsertionSort(win, bars, barWidth, data, delay)
+			info.algo = "Insertion sort"
+			InsertionSort(win, bars, barWidth, data, info)
 			return
 		case "3":
-			SelectionSort(win, bars, barWidth, data, delay)
+			info.algo = "Selection sort"
+			SelectionSort(win, bars, barWidth, data, info)
 			return
 		case "4":
+			info.algo = "Heap sort"
 			minHeap := NewMinHeap(data)
-			minHeap.Sort(win, bars, barWidth, len(data), delay)
+			minHeap.Sort(win, bars, barWidth, len(data), info)
 			return
 		case "5":
-			BogoSort(win, bars, barWidth, data, delay)
+			info.algo = "Bogo sort"
+			info.comparisons = 0
+			BogoSort(win, bars, barWidth, data, info)
 		default:
 			fmt.Println("Invalid option, please try again")
 		}
