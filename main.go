@@ -101,6 +101,10 @@ func createWindow() *pixelgl.Window {
 	return win
 }
 
+func mapToFeq(num, n int) float64 {
+	return float64(num*1140/n + 60)
+}
+
 func Visualize(win *pixelgl.Window, bars []bar, barWidth float64, data []float64, j int, k int, info info) {
 	win.Update()
 	win.Clear(colornames.Lightslategray)
@@ -132,29 +136,7 @@ func Visualize(win *pixelgl.Window, bars []bar, barWidth float64, data []float64
 	txt.Draw(win, pixel.IM)
 }
 
-func mapToFeq(num, n int) float64 {
-	return float64(num*1140/n + 60)
-}
-
-func VisualizeSorted(win *pixelgl.Window, bars []bar, barWidth float64, data []float64) error {
-	var f int
-	switch *format {
-	case "f32le":
-		f = oto.FormatFloat32LE
-	case "u8":
-		f = oto.FormatUnsignedInt8
-	case "s16le":
-		f = oto.FormatSignedInt16LE
-	default:
-		return fmt.Errorf("format must be u8, s16le, or f32le but: %s", *format)
-	}
-	c, ready, err := oto.NewContext(*sampleRate, *channelCount, f)
-	if err != nil {
-		return err
-	}
-	<-ready
-
-	var players []oto.Player
+func VisualizeSorted(win *pixelgl.Window, bars []bar, barWidth float64, data []float64, players []oto.Player, f int, c *oto.Context) error {
 
 	for j := 0; j < len(bars); j++ {
 		p := play(c, mapToFeq(j, len(bars)), time.Duration(600/len(data))*time.Millisecond, *channelCount, f)
@@ -195,34 +177,53 @@ func run() {
 
 	win := createWindow()
 
+	var f int
+	switch *format {
+	case "f32le":
+		f = oto.FormatFloat32LE
+	case "u8":
+		f = oto.FormatUnsignedInt8
+	case "s16le":
+		f = oto.FormatSignedInt16LE
+	default:
+		return
+	}
+	c, ready, err := oto.NewContext(*sampleRate, *channelCount, f)
+	if err != nil {
+		return
+	}
+	<-ready
+	var players []oto.Player
+
 	for !win.Closed() {
 		switch info.algo {
 		case "1":
 			info.algo = "Bubble sort"
-			BubbleSort(win, bars, barWidth, data, info)
+			BubbleSort(win, bars, barWidth, data, info, players, f, c)
 			return
 		case "2":
 			info.algo = "Insertion sort"
-			InsertionSort(win, bars, barWidth, data, info)
+			InsertionSort(win, bars, barWidth, data, info, players, f, c)
 			return
 		case "3":
 			info.algo = "Selection sort"
-			SelectionSort(win, bars, barWidth, data, info)
+			SelectionSort(win, bars, barWidth, data, info, players, f, c)
 			return
 		case "4":
 			info.algo = "Heap sort"
 			minHeap := NewMinHeap(data)
-			minHeap.Sort(win, bars, barWidth, len(data), info)
+			minHeap.Sort(win, bars, barWidth, len(data), info, players, f, c)
 			return
 		case "5":
 			info.algo = "Bogo sort"
 			info.comparisons = 0
-			BogoSort(win, bars, barWidth, data, info)
+			BogoSort(win, bars, barWidth, data, info, players, f, c)
 		default:
 			fmt.Println("Invalid option, please try again")
 		}
 		break
 	}
+	return
 }
 
 func main() {
