@@ -14,6 +14,7 @@ import (
 	"github.com/faiface/pixel/imdraw"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel/text"
+	"github.com/hajimehoshi/oto"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
 )
@@ -131,8 +132,33 @@ func Visualize(win *pixelgl.Window, bars []bar, barWidth float64, data []float64
 	txt.Draw(win, pixel.IM)
 }
 
-func VisualizeSorted(win *pixelgl.Window, bars []bar, barWidth float64, data []float64) {
+func mapToFeq(num, n int) float64 {
+	return float64(num*1140/n + 60)
+}
+
+func VisualizeSorted(win *pixelgl.Window, bars []bar, barWidth float64, data []float64) error {
+	var f int
+	switch *format {
+	case "f32le":
+		f = oto.FormatFloat32LE
+	case "u8":
+		f = oto.FormatUnsignedInt8
+	case "s16le":
+		f = oto.FormatSignedInt16LE
+	default:
+		return fmt.Errorf("format must be u8, s16le, or f32le but: %s", *format)
+	}
+	c, ready, err := oto.NewContext(*sampleRate, *channelCount, f)
+	if err != nil {
+		return err
+	}
+	<-ready
+
+	var players []oto.Player
+
 	for j := 0; j < len(bars); j++ {
+		p := play(c, mapToFeq(j, len(bars)), time.Duration(600/len(data))*time.Millisecond, *channelCount, f)
+		players = append(players, p)
 		Sleep(600 / len(data))
 		win.Update()
 		win.Clear(colornames.Lightslategray)
@@ -153,6 +179,7 @@ func VisualizeSorted(win *pixelgl.Window, bars []bar, barWidth float64, data []f
 			imd.Draw(win)
 		}
 	}
+	return nil
 }
 
 func run() {
