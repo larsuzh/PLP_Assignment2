@@ -2,10 +2,10 @@ package main
 
 import (
 	"math/rand"
+	"runtime"
 	"time"
 
 	"github.com/faiface/pixel/pixelgl"
-	"github.com/hajimehoshi/oto"
 )
 
 func checkSortedArray(arr []float64) bool {
@@ -21,11 +21,17 @@ func checkSortedArray(arr []float64) bool {
 	return sortedArray
 }
 
-func BogoSort(win *pixelgl.Window, bars []bar, barWidth float64, data []float64, info info, players []oto.Player, f int, c *oto.Context) {
+func BogoSort(win *pixelgl.Window, bars []bar, barWidth float64, data []float64, info info, beep beep) {
 	for {
-		p := play(c, mapToFeq(int(data[rand.Intn(len(bars))]), len(bars)), time.Duration(info.delay)*time.Millisecond, *channelCount, f)
-		players = append(players, p)
-		Sleep(info.delay)
+		beep.wg.Add(1)
+		go func() {
+			defer beep.wg.Done()
+			p := play(beep.c, mapToFeq(int(data[rand.Intn(len(bars))]), len(bars)), time.Duration(info.delay)*time.Millisecond, *channelCount, beep.f)
+			beep.m.Lock()
+			beep.players = append(beep.players, p)
+			beep.m.Unlock()
+			Sleep(info.delay)
+		}()
 		rand.Shuffle(len(data), func(i, j int) { data[i], data[j] = data[j], data[i] })
 		Visualize(win, bars, barWidth, data, -1, -1, info)
 		Sleep(info.delay)
@@ -33,5 +39,7 @@ func BogoSort(win *pixelgl.Window, bars []bar, barWidth float64, data []float64,
 			break
 		}
 	}
-	VisualizeSorted(win, bars, barWidth, data, players, f, c)
+	beep.wg.Wait()
+	runtime.KeepAlive(beep.players)
+	VisualizeSorted(win, bars, barWidth, data, beep)
 }

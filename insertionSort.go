@@ -1,13 +1,13 @@
 package main
 
 import (
+	"runtime"
 	"time"
 
 	"github.com/faiface/pixel/pixelgl"
-	"github.com/hajimehoshi/oto"
 )
 
-func InsertionSort(win *pixelgl.Window, bars []bar, barWidth float64, data []float64, info info, players []oto.Player, f int, c *oto.Context) {
+func InsertionSort(win *pixelgl.Window, bars []bar, barWidth float64, data []float64, info info, beep beep) {
 	var n = len(data)
 	for i := 1; i < n; i++ {
 		j := i
@@ -16,13 +16,22 @@ func InsertionSort(win *pixelgl.Window, bars []bar, barWidth float64, data []flo
 				data[j-1], data[j] = data[j], data[j-1]
 			}
 			j = j - 1
+
+			beep.wg.Add(1)
+			go func() {
+				defer beep.wg.Done()
+				p := play(beep.c, mapToFeq(int(data[j]), len(bars)), time.Duration(info.delay)*time.Millisecond, *channelCount, beep.f)
+				beep.m.Lock()
+				beep.players = append(beep.players, p)
+				beep.m.Unlock()
+				Sleep(info.delay)
+			}()
 			info.comparisons = int(i/2*i) + i - j
-			p := play(c, mapToFeq(int(data[j]), len(bars)), time.Duration(info.delay)*time.Millisecond, *channelCount, f)
-			players = append(players, p)
-			Sleep(info.delay)
 			Visualize(win, bars, barWidth, data, j, j-1, info)
 			Sleep(info.delay)
 		}
 	}
-	VisualizeSorted(win, bars, barWidth, data, players, f, c)
+	beep.wg.Wait()
+	runtime.KeepAlive(beep.players)
+	VisualizeSorted(win, bars, barWidth, data, beep)
 }

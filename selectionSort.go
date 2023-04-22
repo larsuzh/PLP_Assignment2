@@ -1,13 +1,13 @@
 package main
 
 import (
+	"runtime"
 	"time"
 
 	"github.com/faiface/pixel/pixelgl"
-	"github.com/hajimehoshi/oto"
 )
 
-func SelectionSort(win *pixelgl.Window, bars []bar, barWidth float64, data []float64, info info, players []oto.Player, f int, c *oto.Context) {
+func SelectionSort(win *pixelgl.Window, bars []bar, barWidth float64, data []float64, info info, beep beep) {
 	var n = len(data)
 	for i := 0; i < n; i++ {
 		var minIdx = i
@@ -15,14 +15,22 @@ func SelectionSort(win *pixelgl.Window, bars []bar, barWidth float64, data []flo
 			if data[j] < data[minIdx] {
 				minIdx = j
 			}
+			beep.wg.Add(1)
+			go func() {
+				defer beep.wg.Done()
+				p := play(beep.c, mapToFeq(int(data[j]), len(bars)), time.Duration(info.delay)*time.Millisecond, *channelCount, beep.f)
+				beep.m.Lock()
+				beep.players = append(beep.players, p)
+				beep.m.Unlock()
+				Sleep(info.delay)
+			}()
 			info.comparisons = i*len(data) + j - i
-			p := play(c, mapToFeq(int(data[j]), len(bars)), time.Duration(info.delay)*time.Millisecond, *channelCount, f)
-			players = append(players, p)
-			Sleep(info.delay)
 			Visualize(win, bars, barWidth, data, minIdx, j, info)
 			Sleep(info.delay)
 		}
 		data[i], data[minIdx] = data[minIdx], data[i]
 	}
-	VisualizeSorted(win, bars, barWidth, data, players, f, c)
+	beep.wg.Wait()
+	runtime.KeepAlive(beep.players)
+	VisualizeSorted(win, bars, barWidth, data, beep)
 }

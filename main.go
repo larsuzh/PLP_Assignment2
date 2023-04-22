@@ -6,8 +6,10 @@ import (
 	"image/color"
 	"math/rand"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/faiface/pixel"
@@ -28,6 +30,14 @@ type info struct {
 	algo        string
 	delay       int
 	comparisons int
+}
+
+type beep struct {
+	players []oto.Player
+	f       int
+	c       *oto.Context
+	wg      sync.WaitGroup
+	m       sync.Mutex
 }
 
 var (
@@ -136,12 +146,18 @@ func Visualize(win *pixelgl.Window, bars []bar, barWidth float64, data []float64
 	txt.Draw(win, pixel.IM)
 }
 
-func VisualizeSorted(win *pixelgl.Window, bars []bar, barWidth float64, data []float64, players []oto.Player, f int, c *oto.Context) error {
+func VisualizeSorted(win *pixelgl.Window, bars []bar, barWidth float64, data []float64, beep beep) {
 
 	for j := 0; j < len(bars); j++ {
-		p := play(c, mapToFeq(j, len(bars)), time.Duration(600/len(data))*time.Millisecond, *channelCount, f)
-		players = append(players, p)
-		Sleep(600 / len(data))
+		beep.wg.Add(1)
+		go func() {
+			defer beep.wg.Done()
+			p := play(beep.c, mapToFeq(j, len(bars)), time.Duration(600/len(data))*time.Millisecond, *channelCount, beep.f)
+			beep.m.Lock()
+			beep.players = append(beep.players, p)
+			beep.m.Unlock()
+			Sleep(600 / len(data))
+		}()
 		win.Update()
 		win.Clear(colornames.Lightslategray)
 		for i := 0; i < len(bars); i++ {
@@ -161,12 +177,14 @@ func VisualizeSorted(win *pixelgl.Window, bars []bar, barWidth float64, data []f
 			imd.Draw(win)
 		}
 	}
-	return nil
+	beep.wg.Wait()
+	runtime.KeepAlive(beep.players)
 }
 
 func run() {
 	reader := bufio.NewReader(os.Stdin)
 	var info info
+	var beep beep
 	info.algo = readAlgo(reader)
 	dataSize := readSize(reader)
 	info.delay = readDelay(reader)
@@ -177,53 +195,52 @@ func run() {
 
 	win := createWindow()
 
-	var f int
 	switch *format {
 	case "f32le":
-		f = oto.FormatFloat32LE
+		beep.f = oto.FormatFloat32LE
 	case "u8":
-		f = oto.FormatUnsignedInt8
+		beep.f = oto.FormatUnsignedInt8
 	case "s16le":
-		f = oto.FormatSignedInt16LE
+		beep.f = oto.FormatSignedInt16LE
 	default:
 		return
 	}
-	c, ready, err := oto.NewContext(*sampleRate, *channelCount, f)
+	c, ready, err := oto.NewContext(*sampleRate, *channelCount, beep.f)
 	if err != nil {
 		return
 	}
+	beep.c = c
 	<-ready
-	var players []oto.Player
 
 	for !win.Closed() {
 		switch info.algo {
 		case "1":
 			info.algo = "Bubble sort"
-			BubbleSort(win, bars, barWidth, data, info, players, f, c)
+			BubbleSort(win, bars, barWidth, data, info, beep)
 			return
 		case "2":
 			info.algo = "Insertion sort"
-			InsertionSort(win, bars, barWidth, data, info, players, f, c)
+			InsertionSort(win, bars, barWidth, data, info, beep)
 			return
 		case "3":
 			info.algo = "Selection sort"
-			SelectionSort(win, bars, barWidth, data, info, players, f, c)
+			SelectionSort(win, bars, barWidth, data, info, beep)
 			return
 		case "4":
 			info.algo = "Heap sort"
 			minHeap := NewMinHeap(data)
-			minHeap.Sort(win, bars, barWidth, len(data), info, players, f, c)
+			minHeap.Sort(win, bars, barWidth, len(data), info, beep)
 			return
 		case "5":
 			info.algo = "Bogo sort"
 			info.comparisons = 0
-			BogoSort(win, bars, barWidth, data, info, players, f, c)
+			BogoSort(win, bars, barWidth, data, info, beep)
+			return
 		default:
 			fmt.Println("Invalid option, please try again")
 		}
 		break
 	}
-	return
 }
 
 func main() {

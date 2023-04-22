@@ -3,13 +3,13 @@ package main
 import (
 	"fmt"
 	"math"
+	"runtime"
 	"time"
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel/text"
-	"github.com/hajimehoshi/oto"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
 )
@@ -72,19 +72,27 @@ func (m *minheap) buildMinHeap(size int) {
 	}
 }
 
-func (m *minheap) Sort(win *pixelgl.Window, bars []bar, barWidth float64, size int, info info, players []oto.Player, f int, c *oto.Context) {
+func (m *minheap) Sort(win *pixelgl.Window, bars []bar, barWidth float64, size int, info info, beep beep) {
 	m.buildMinHeap(size)
 	for i := size - 1; i > 0; i-- {
 		m.swap(0, i)
 		m.downHeapify(0, i)
+		beep.wg.Add(1)
+		go func() {
+			defer beep.wg.Done()
+			p := play(beep.c, mapToFeq(int(m.arr[i]), len(bars)), time.Duration(info.delay)*time.Millisecond, *channelCount, beep.f)
+			beep.m.Lock()
+			beep.players = append(beep.players, p)
+			beep.m.Unlock()
+			Sleep(info.delay)
+		}()
 		info.comparisons = (size - i) * int(math.Log2(float64(size)))
-		p := play(c, mapToFeq(int(m.arr[i]), len(bars)), time.Duration(info.delay)*time.Millisecond, *channelCount, f)
-		players = append(players, p)
-		Sleep(info.delay)
 		m.Visualize(win, bars, barWidth, 0, i, info)
 		Sleep(info.delay)
 	}
-	VisualizeSorted(win, bars, barWidth, m.arr, players, f, c)
+	beep.wg.Wait()
+	runtime.KeepAlive(beep.players)
+	VisualizeSorted(win, bars, barWidth, m.arr, beep)
 }
 
 func (m *minheap) Visualize(win *pixelgl.Window, bars []bar, barWidth float64, j int, k int, info info) {
